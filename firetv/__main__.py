@@ -20,16 +20,16 @@ Find device IP:
 
 import argparse
 import re
-import yaml
 import logging
+import yaml
 from flask import Flask, jsonify, request, abort
 from firetv import FireTV
 
-app = Flask(__name__)
-devices = {}
-config_data = None
-valid_device_id = re.compile('^[-\w]+$')
-valid_app_id = re.compile('^[a-zA-Z][a-z\.A-Z]+$')
+MAIN_APPLICATION = Flask(__name__)
+KNOWN_DEVICES = {}
+
+VALID_DEVICE_ID = re.compile(r"^[-\w]+$")
+VALID_APP_ID = re.compile(r"^[a-zA-Z][a-z\.A-Z]+$")
 
 
 def is_valid_host(host):
@@ -54,7 +54,7 @@ def is_valid_device_id(device_id):
     :param device_id: Device identifier
     :returns: Valid or not.
     """
-    return valid_device_id.match(device_id)
+    return VALID_DEVICE_ID.match(device_id)
 
 def is_valid_app_id(app_id):
     """ check if app identifier is valid.
@@ -65,7 +65,7 @@ def is_valid_app_id(app_id):
     :param app_id: Application identifier
     :returns: Valid or not
     """
-    return valid_app_id.match(app_id)
+    return VALID_APP_ID.match(app_id)
 
 def add(device_id, host):
     """ Add a device.
@@ -78,11 +78,11 @@ def add(device_id, host):
     """
     valid = is_valid_device_id(device_id) and is_valid_host(host)
     if valid:
-        devices[device_id] = FireTV(str(host))
+        KNOWN_DEVICES[device_id] = FireTV(str(host))
     return valid
 
 
-@app.route('/devices/add', methods=['POST'])
+@MAIN_APPLICATION.route('/devices/add', methods=['POST'])
 def add_device():
     """ Add a device via HTTP POST.
 
@@ -101,86 +101,86 @@ def add_device():
     return jsonify(success=success)
 
 
-@app.route('/devices/list', methods=['GET'])
+@MAIN_APPLICATION.route('/devices/list', methods=['GET'])
 def list_devices():
     """ List devices via HTTP GET. """
     output = {}
-    for device_id, device in devices.items():
+    for device_id, device in KNOWN_DEVICES.items():
         output[device_id] = {
             'host': device.host,
             'state': device.state
         }
-    return jsonify(devices=output)
+    return jsonify(KNOWN_DEVICES=output)
 
 
-@app.route('/devices/state/<device_id>', methods=['GET'])
+@MAIN_APPLICATION.route('/devices/state/<device_id>', methods=['GET'])
 def device_state(device_id):
     """ Get device state via HTTP GET. """
-    if device_id not in devices:
+    if device_id not in KNOWN_DEVICES:
         return jsonify(success=False)
-    return jsonify(state=devices[device_id].state)
+    return jsonify(state=KNOWN_DEVICES[device_id].state)
 
-@app.route('/devices/<device_id>/apps/running', methods=['GET'])
+@MAIN_APPLICATION.route('/devices/<device_id>/apps/running', methods=['GET'])
 def running_apps(device_id):
     """ Get running apps via HTTP GET. """
     if not is_valid_device_id(device_id):
         abort(403)
-    if device_id not in devices:
+    if device_id not in KNOWN_DEVICES:
         abort(404)
-    return jsonify(running_apps=devices[device_id].running_apps())
+    return jsonify(running_apps=KNOWN_DEVICES[device_id].running_apps())
 
-@app.route('/devices/<device_id>/apps/state/<app_id>', methods=['GET'])
+@MAIN_APPLICATION.route('/devices/<device_id>/apps/state/<app_id>', methods=['GET'])
 def get_app_state(device_id, app_id):
     """ Get the state of the requested app """
     if not is_valid_app_id(app_id):
         abort(403)
     if not is_valid_device_id(device_id):
         abort(403)
-    if device_id not in devices:
+    if device_id not in KNOWN_DEVICES:
         abort(404)
-    return jsonify(status=devices[device_id].app_state(app_id))
+    return jsonify(status=KNOWN_DEVICES[device_id].app_state(app_id))
 
-@app.route('/devices/action/<device_id>/<action_id>', methods=['GET'])
+@MAIN_APPLICATION.route('/devices/action/<device_id>/<action_id>', methods=['GET'])
 def device_action(device_id, action_id):
     """ Initiate device action via HTTP GET. """
     success = False
-    if device_id in devices:
-        input_cmd = getattr(devices[device_id], action_id, None)
+    if device_id in KNOWN_DEVICES:
+        input_cmd = getattr(KNOWN_DEVICES[device_id], action_id, None)
         if callable(input_cmd):
             input_cmd()
             success = True
     return jsonify(success=success)
 
-@app.route('/devices/<device_id>/apps/<app_id>/start', methods=['GET'])
+@MAIN_APPLICATION.route('/devices/<device_id>/apps/<app_id>/start', methods=['GET'])
 def app_start(device_id, app_id):
     """ Starts an app with corresponding package name"""
     if not is_valid_app_id(app_id):
         abort(403)
     if not is_valid_device_id(device_id):
         abort(403)
-    if device_id not in devices:
+    if device_id not in KNOWN_DEVICES:
         abort(404)
-    devices[device_id].launch_app(app_id + "/.Splash")
+    KNOWN_DEVICES[device_id].launch_app(app_id + "/.Splash")
     return jsonify(success=True)
 
-@app.route('/devices/<device_id>/apps/<app_id>/stop', methods=['GET'])
+@MAIN_APPLICATION.route('/devices/<device_id>/apps/<app_id>/stop', methods=['GET'])
 def app_stop(device_id, app_id):
     """ stops an app with corresponding package name"""
     if not is_valid_app_id(app_id):
         abort(403)
     if not is_valid_device_id(device_id):
         abort(403)
-    if device_id not in devices:
+    if device_id not in KNOWN_DEVICES:
         abort(404)
-    devices[device_id].stop_app(app_id)
+    KNOWN_DEVICES[device_id].stop_app(app_id)
     return jsonify(success=True)
 
-@app.route('/devices/connect/<device_id>', methods=['GET'])
+@MAIN_APPLICATION.route('/devices/connect/<device_id>', methods=['GET'])
 def device_connect(device_id):
     """ Force a connection attempt via HTTP GET. """
     success = False
-    if device_id in devices:
-        devices[device_id].connect()
+    if device_id in KNOWN_DEVICES:
+        KNOWN_DEVICES[device_id].connect()
         success = True
     return jsonify(success=success)
 
@@ -198,7 +198,8 @@ def _add_devices_from_config(args):
     for device in config['devices']:
         if args.default:
             if device == "default":
-                raise ValueError('devicename "default" in config is not allowed if default param is set')
+                raise ValueError('devicename "default" in config is not '
+                                 'allowed if default param is set')
             if config['devices'][device]['host'] == args.default:
                 raise ValueError('host set in default param must not be defined in config')
         logging.info('Adding device: %s', device)
@@ -207,8 +208,8 @@ def _add_devices_from_config(args):
 def main():
     """ Set up the server. """
     parser = argparse.ArgumentParser(description='AFTV Server')
-    parser.add_argument('-p', '--port', type=int, help='listen port', default=5556)
-    parser.add_argument('-d', '--default', help='default Amazon Fire TV host', nargs='?')
+    parser.add_argument('-p', '--port', type=int, help='Listen port', default=5556)
+    parser.add_argument('-d', '--default', help='Default Amazon Fire TV host', nargs='?')
     parser.add_argument('-c', '--config', type=str, help='Path to config file')
     parser.add_argument('-v', '--verbose', help='Enable verbose logging',
                         action="store_true")
@@ -224,7 +225,7 @@ def main():
     if args.config:
         _add_devices_from_config(args)
 
-    app.run(host='0.0.0.0', port=args.port)
+    MAIN_APPLICATION.run(host='0.0.0.0', port=args.port)
 
 
 if __name__ == '__main__':

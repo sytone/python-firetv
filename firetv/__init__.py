@@ -170,11 +170,13 @@ class FireTV:
         self._key(PREVIOUS)
 
     def launch_app(self, app):
+        """ Request a application to be launched. """
         if not self._adb:
             return
         self._adb.Shell('am start -n {0}'.format(app))
 
     def stop_app(self, app):
+        """ Request a application to be stopped. """
         if not self._adb:
             return
         self._adb.Shell('am force-stop {0}'.format(app))
@@ -254,16 +256,16 @@ class FireTV:
         if not self._adb:
             return
         result = []
-        ps = self._adb.StreamingShell('ps')
+        processes = self._adb.StreamingShell('ps')
         try:
-            for bad_line in ps:
+            for bad_line in processes:
                 # The splitting of the StreamingShell doesn't always work
                 # this is to ensure that we get only one line
                 for line in bad_line.splitlines():
                     if search in line:
                         result.append(line.strip().rsplit(' ', 1)[-1])
             return result
-        except InvalidChecksumError as e:
-            print(e)
+        except InvalidChecksumError as checksum_error:
+            print(checksum_error)
             self.connect()
             raise IOError
