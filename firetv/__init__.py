@@ -60,7 +60,7 @@ class FireTV:
             self._adb = adb_commands.AdbCommands.ConnectDevice(
                 serial=self.host)
         except socket_error as serr:
-            if serr.errno != errno.ECONNREFUSED:
+            if serr.errno != errno.ECONNREFUSED and serr.errno != errno.EAGAIN:
                 raise serr
 
     @property
@@ -261,9 +261,9 @@ class FireTV:
                 # this is to ensure that we get only one line
                 for line in bad_line.splitlines():
                     if search in line:
-                        result.append(line.strip().rsplit(' ',1)[-1])
+                        result.append(line.strip().rsplit(' ', 1)[-1])
             return result
         except InvalidChecksumError as e:
-            print e
+            print(e)
             self.connect()
             raise IOError
