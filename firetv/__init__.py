@@ -7,6 +7,7 @@ ADB Debugging must be enabled.
 """
 
 import errno
+import logging
 from socket import error as socket_error
 from adb import adb_commands
 from adb.adb_protocol import InvalidChecksumError
@@ -173,7 +174,12 @@ class FireTV:
         """ Request a application to be launched. """
         if not self._adb:
             return
-        self._adb.Shell('am start -n {0}'.format(app))
+        main_activity = self._main_activity(app)
+        if main_activity:
+            self._adb.Shell('am start -n {0}'.format(main_activity))
+            return True
+        else:
+            return False
 
     def stop_app(self, app):
         """ Request a application to be stopped. """
@@ -201,8 +207,6 @@ class FireTV:
         """ Check if the active application is the Amazon TV launcher. """
         return self._dump_has('window', 'mFocusedApp=AppWindowToken',
                               'com.amazon.tv.launcher')
-
-
 
     def _power(self):
         """ Send power action. """
@@ -269,3 +273,13 @@ class FireTV:
             print(checksum_error)
             self.connect()
             raise IOError
+
+    def _main_activity(self, app):
+        pm_dump = self._adb.Shell(('pm dump {0} | grep -A 1 "MAIN" | grep {0}').format(app))
+        logging.info('Raw Dump for %s: %s', app, pm_dump)
+        try:
+            return pm_dump.strip().split(" ")[1]
+        except IndexError:
+            return None
+
+        

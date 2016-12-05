@@ -9,7 +9,7 @@ setup(
     author='happyleaves',
     author_email='happyleaves.tfr@gmail.com',
     packages=['firetv'],
-    install_requires=['adb>=1.1.1'],
+    install_requires=['adb>=1.1.0'],
     extras_require={
         'firetv-server': ['Flask>=0.10.1']
     },

@@ -110,7 +110,7 @@ def list_devices():
             'host': device.host,
             'state': device.state
         }
-    return jsonify(KNOWN_DEVICES=output)
+    return jsonify(devices=output)
 
 
 @MAIN_APPLICATION.route('/devices/state/<device_id>', methods=['GET'])
@@ -160,7 +160,8 @@ def app_start(device_id, app_id):
         abort(403)
     if device_id not in KNOWN_DEVICES:
         abort(404)
-    KNOWN_DEVICES[device_id].launch_app(app_id + "/.Splash")
+    if not KNOWN_DEVICES[device_id].launch_app(app_id):
+        abort(404)
     return jsonify(success=True)
 
 @MAIN_APPLICATION.route('/devices/<device_id>/apps/<app_id>/stop', methods=['GET'])
