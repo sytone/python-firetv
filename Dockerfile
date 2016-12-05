@@ -11,7 +11,10 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/*
 
 RUN pip --no-cache-dir install --upgrade pip
-RUN pip --no-cache-dir install flask pyyaml
+
+ADD requirements.txt /opt/app/requirements.txt
+WORKDIR /opt/app
+RUN pip install -r requirements.txt
 RUN pip --no-cache-dir install https://pypi.python.org/packages/source/M/M2Crypto/M2Crypto-0.24.0.tar.gz
 #RUN pip --no-cache-dir install firetv[firetv-server]
 RUN pip install git+git://github.com/sytone/python-firetv.git
