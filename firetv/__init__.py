@@ -66,12 +66,21 @@ class FireTV:
         Will attempt to establish ADB connection to the given host.
         Failure sets state to DISCONNECTED and disables sending actions.
         """
+        logging.debug('Connecting to device "%s"', self.host)
         try:
             self._adb = adb_commands.AdbCommands.ConnectDevice(
                 serial=self.host)
+            logging.debug('ADB Connection sucessful')
         except socket_error as serr:
             if serr.errno != errno.ECONNREFUSED:
+                logging.debug('Socket error')
                 raise serr
+        except ValueError as adb_value_error:
+            if "'Unable to unpack ADB command.', '<6I'," in str(adb_value_error):
+                logging.error('Reboot "%s" Fire TV, it has multiple ADB connections.', self.host)
+            else:
+                raise adb_value_error
+
 
     @property
     def state(self):
@@ -195,19 +204,22 @@ class FireTV:
         return {"retcode": retcode, "output": output}
 
     def launch_app(self, app):
+        """ Launch the specified app on the Fire TV """
         if not self._adb:
             return None
 
         return self._send_intent(app, INTENT_LAUNCH)
 
     def stop_app(self, app):
+        """ Stop the specified app on the Fire TV """
         if not self._adb:
             return None
-
+        logging.debug('Stopping "%s" by going home.', app)
         return self._send_intent(PACKAGE_LAUNCHER, INTENT_HOME)
 
     @property
     def current_app(self):
+        """ Get the current running app on the Fire TV """
         current_focus = self._dump("window windows", "mCurrentFocus").replace("\r", "")
 
         #logging.error("Current: %s", current_focus)
@@ -293,16 +305,16 @@ class FireTV:
         if not self._adb:
             return
         result = []
-        ps = self._adb.StreamingShell('ps')
+        processes = self._adb.StreamingShell('ps')
         try:
-            for bad_line in ps:
+            for bad_line in processes:
                 # The splitting of the StreamingShell doesn't always work
                 # this is to ensure that we get only one line
                 for line in bad_line.splitlines():
                     if search in line:
-                        result.append(line.strip().rsplit(' ',1)[-1])
+                        result.append(line.strip().rsplit(' ', 1)[-1])
             return result
-        except InvalidChecksumError as e:
-            print(e)
+        except InvalidChecksumError as bad_checksum:
+            print(bad_checksum)
             self.connect()
             raise IOError

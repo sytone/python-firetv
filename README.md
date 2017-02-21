@@ -2,7 +2,7 @@
 
 `firetv` is a Python 2.x package that provides state information and some control of an Amazon Fire TV device over a network. This is achieved via ADB, so therefore requires [ADB Debugging](https://developer.amazon.com/public/solutions/devices/fire-tv/docs/connecting-adb-over-network) to be turned on. It includes `firetv-server`, an HTTP server to facilitate RESTful access to configured devices.
 
-## Installation
+## Manual Installation
 
 Install the following ADB dependencies via your package manager:
 
@@ -60,6 +60,14 @@ devices:
 ```
 
 *Note: If you use -d and -c option together you must not name one of the devices in config file `default` or give one of the devices the same host as in -d option.*
+
+## Docker Installation
+If you want to skip the manual work above the following steps will get a docker container up and allow you to mount a volume for the configuration. This example is for Windows, change the paths to match your operating system. 
+
+```powershell
+docker run -d --restart=always -v F:/docker/firetv/config:/config --name python-firetv -p 5556:5556 sytone/python-firetv -c /config/house.yaml
+```
+
 
 ### Routes
 
@@ -135,3 +143,16 @@ app_id must be a package name, e.g. org.xbmc.kodi or com.netflix.ninja
 ## Contribution
 
 This package does not fully exploit the potential of ADB access to Amazon Fire TV devices, and lacks some robustness. Contributions are welcome.
+
+
+## Local development using Docker
+
+Run the following commands in the root of this repo to generate a docker container and run the tool. Update folders as needed, this assumes you have a test configuration file in ./config
+
+```powershell
+$currentPath = (get-Location).Path
+$currentPath = "{0}/config" -f $currentPath.Replace('\','/')
+docker build -t local-docker-firetv -f .\Dockerfile.development .\; docker run  -it --rm -v $("{0}:/config" -f $currentPath) --name local-python-firetv -p 5556:5556 local-docker-firetv -v -c /config/house.yaml
+```
+
+

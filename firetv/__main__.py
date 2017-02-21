@@ -18,6 +18,8 @@ Find device IP:
     2. Select System > About > Network.
 """
 
+import logging
+
 import argparse
 import re
 import yaml
@@ -78,6 +80,7 @@ def add(device_id, host):
     """
     valid = is_valid_device_id(device_id) and is_valid_host(host)
     if valid:
+        logging.debug('Adding valid device "%s", "%s"', device_id, host)
         devices[device_id] = FireTV(str(host))
     return valid
 
@@ -156,6 +159,7 @@ def get_app_state(device_id, app_id):
 
 @app.route('/devices/<device_id>/apps/<app_id>/state', methods=['GET'])
 def get_app_state_alt(device_id, app_id):
+    """ Get the state of the requested app. Alternative path """
     return get_app_state(device_id, app_id)
 
 @app.route('/devices/action/<device_id>/<action_id>', methods=['GET'])
@@ -218,24 +222,36 @@ def _add_devices_from_config(args):
     for device in config['devices']:
         if args.default:
             if device == "default":
-                raise ValueError('devicename "default" in config is not allowed if default param is set')
+                raise ValueError('default param is set, "default" in config is not allowed.')
             if config['devices'][device]['host'] == args.default:
                 raise ValueError('host set in default param must not be defined in config')
+        logging.debug('Adding "%s"', config['devices'][device])
         add(device, config['devices'][device]['host'])
 
 def main():
     """ Set up the server. """
+
     parser = argparse.ArgumentParser(description='AFTV Server')
     parser.add_argument('-p', '--port', type=int, help='listen port', default=5556)
     parser.add_argument('-d', '--default', help='default Amazon Fire TV host', nargs='?')
     parser.add_argument('-c', '--config', type=str, help='Path to config file')
+    parser.add_argument('-v', '--verbose', help='Verbose output', action="store_true")
     args = parser.parse_args()
 
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+        logging.debug('Verbose logging enabled')
+    else:
+        logging.basicConfig(level=logging.INFO)
+
     if args.config:
+        logging.debug('Loading configuration from specificed configuration file: %s', args.config)
         _add_devices_from_config(args)
 
     if args.default and not add('default', args.default):
         exit('invalid hostname')
+
+    logging.debug('Running on port: %s', args.port)
     app.run(host='0.0.0.0', port=args.port)
 
 
